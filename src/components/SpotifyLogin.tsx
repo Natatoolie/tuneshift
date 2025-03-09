@@ -8,19 +8,21 @@ const SpotifyLogin = ({
 	children,
 
 	disabled = false,
+	disableClick = false,
 }: {
 	children?: React.ReactNode
 
 	disabled?: boolean
+	disableClick?: boolean
 }) => {
 	function signIn() {
-		// if (enableSignin === true) {
-		authClient.signIn.social({
-			provider: "spotify",
-			callbackURL: "/connect",
-			errorCallbackURL: "/error",
-		})
-		// }
+		if (disableClick === true) {
+			authClient.signIn.social({
+				provider: "spotify",
+				callbackURL: "/connect",
+				errorCallbackURL: "/error",
+			})
+		}
 	}
 	return (
 		<button
