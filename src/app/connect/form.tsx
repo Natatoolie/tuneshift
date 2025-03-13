@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation"
 
 import React, { useActionState, useEffect } from "react"
 import { toast } from "sonner"
+import { motion } from "framer-motion"
 
 const Form = () => {
 	const { data } = authClient.useSession()
@@ -31,20 +32,37 @@ const Form = () => {
 			description: <p className='text-background/60'>{state.message}</p>,
 		})
 		if (state.success) {
-			router.push("/")
+			router.push("/connect")
 		}
-	}, [state])
+	}, [state, router])
 
 	return (
 		<div className='min-h-screen bg-gradient-to-b from-black to-zinc-900 text-white'>
 			<div className='container mx-auto px-4 py-16'>
 				<div className='max-w-4xl mx-auto text-center'>
-					<h1 className='text-5xl md:text-6xl font-bold mb-6'>Connect</h1>
-					<div className='flex gap-4 items-center justify-center text-xl text-gray-300 mb-8 font-primary'>
+					<motion.h1
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ duration: 0.5, delay: 0.1 }}
+						className='text-5xl md:text-6xl font-bold mb-6'
+					>
+						Connect
+					</motion.h1>
+					<motion.div
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ duration: 0.5, delay: 0.2 }}
+						className='flex gap-4 items-center justify-center text-xl text-gray-300 mb-8 font-primary'
+					>
 						Connect your Spotify account to <TuneShiftLogo />
-					</div>
+					</motion.div>
 				</div>
-				<div className='flex justify-center space-x-24 mt-50'>
+				<motion.div
+					initial={{ opacity: 0, y: 20 }}
+					animate={{ opacity: 1, y: 0 }}
+					transition={{ duration: 0.5, delay: 0.3 }}
+					className='flex justify-center space-x-24 mt-50'
+				>
 					<div className='flex flex-col items-center space-y-2'>
 						<span className='text-green-500 font-bold'>Spotify</span>
 						<div className='p-12 bg-white/10 rounded-2xl flex flex-col items-center space-y-8'>
@@ -91,7 +109,7 @@ const Form = () => {
 							</button>
 						</form>
 					</div>
-				</div>
+				</motion.div>
 			</div>
 		</div>
 	)

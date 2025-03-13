@@ -1,3 +1,4 @@
+"use client"
 import SpotifyLogin from "@/components/SpotifyLogin"
 import TuneShiftLogo from "@/components/TuneShiftLogo"
 
@@ -11,6 +12,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import React from "react"
+import { motion } from "framer-motion"
 
 const Home = () => {
 	return (
@@ -25,16 +27,31 @@ const Home = () => {
 				</nav>
 
 				<div className='max-w-4xl mx-auto text-center'>
-					<h1 className='text-5xl md:text-6xl font-bold mb-6'>
+					<motion.h1
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ duration: 0.5 }}
+						className='text-5xl md:text-6xl font-bold mb-6'
+					>
 						Transform Your
 						<span className='text-green-500'> Spotify</span> Playlists to
 						<span className='text-red-500'> YouTube</span>
-					</h1>
-					<p className='text-xl text-gray-300 mb-8 font-primary'>
+					</motion.h1>
+					<motion.p
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ duration: 0.5, delay: 0.1 }}
+						className='text-xl text-gray-300 mb-8 font-primary'
+					>
 						Seamlessly convert your favorite Spotify playlists into YouTube
 						music videos with just one click.
-					</p>
-					<div className='flex justify-center items-center gap-4 mb-16 font-bold cursor-default'>
+					</motion.p>
+					<motion.div
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ duration: 0.5, delay: 0.2 }}
+						className='flex justify-center items-center gap-4 mb-16 font-bold cursor-default'
+					>
 						<div className='flex items-center gap-2 text-green-500'>
 							<Music className='w-6 h-6' />
 							<span>Spotify</span>
@@ -44,10 +61,15 @@ const Home = () => {
 							<Youtube className='w-6 h-6' />
 							<span>YouTube</span>
 						</div>
-					</div>
+					</motion.div>
 
 					<div className=' p-8 rounded-2xl backdrop-blur-sm'>
-						<div className='flex flex-col md:flex-row justify-center gap-8'>
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ duration: 0.5, delay: 0.3 }}
+							className='flex flex-col md:flex-row justify-center gap-8'
+						>
 							{/* <input
 								type='text'
 								placeholder='Paste your Spotify playlist link'
@@ -56,14 +78,19 @@ const Home = () => {
 							<Link href={"/connect"}>
 								<SpotifyLogin>Get Started!</SpotifyLogin>
 							</Link>
-						</div>
+						</motion.div>
 					</div>
 				</div>
 			</div>
 
 			{/* Features Section */}
 			<div className='container mx-auto px-4 py-16'>
-				<div className='grid md:grid-cols-3 gap-8'>
+				<motion.div
+					initial={{ opacity: 0, y: 20 }}
+					animate={{ opacity: 1, y: 0 }}
+					transition={{ duration: 0.5, delay: 0.4 }}
+					className='grid md:grid-cols-3 gap-8'
+				>
 					<div className='bg-zinc-800/30 p-6 rounded-xl'>
 						<Clock className='w-12 h-12 text-green-500 mb-4' />
 						<h3 className='text-xl font-semibold mb-2'>Quick Conversion</h3>
@@ -86,7 +113,7 @@ const Home = () => {
 							Get precise matches with our smart track identification system.
 						</p>
 					</div>
-				</div>
+				</motion.div>
 			</div>
 
 			{/* Footer */}

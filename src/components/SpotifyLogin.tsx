@@ -2,6 +2,7 @@
 import { authClient } from "@/lib/auth-client"
 import { cn } from "@/lib/utils"
 import { Sparkles } from "lucide-react"
+import { useRouter } from "next/navigation"
 import React from "react"
 
 const SpotifyLogin = ({
@@ -20,7 +21,6 @@ const SpotifyLogin = ({
 			authClient.signIn.social({
 				provider: "spotify",
 				callbackURL: "/connect",
-				errorCallbackURL: "/error",
 			})
 		}
 	}
