@@ -1,24 +1,35 @@
 "use server"
 
-import { auth, prisma, userSession } from "@/lib/auth"
+import { prisma, userSession } from "@/lib/auth"
+import { getSpotifyTrackFromId, SpotifyPlaylistType } from "@/lib/spotify"
 import { parseHeadersToJSON } from "@/lib/utils"
-import { cookies, headers } from "next/headers"
-import { redirect } from "next/navigation"
 
-import YouTubeMusic from "youtube-music-ts-api"
+import YouTubeMusic, {
+	ITrackDetail,
+	IYouTubeMusicAuthenticated,
+} from "youtube-music-ts-api"
+import YTMusic from "ytmusic-api"
+
+const YTMusicUserSingleton = new YouTubeMusic()
+const YTMusicApiSingleton = new YTMusic()
+
+const userCache: {
+	[userId: string]: {
+		ytMusicUser: IYouTubeMusicAuthenticated
+		ytMusicApi: YTMusic
+	}
+} = {}
 
 export async function verifyYoutubeCookie(cookie: string) {
-	const YTMusicSingleton = new YouTubeMusic()
-
 	try {
-		const e = await YTMusicSingleton.authenticate(cookie)
+		const e = await YTMusicUserSingleton.authenticate(cookie)
 		await e.getLibraryPlaylists()
 
 		return {
 			success: true,
 			message: "Valid cookie.",
 		}
-	} catch (error) {
+	} catch {
 		return {
 			success: false,
 			message: "Invalid cookie.",
@@ -42,10 +53,8 @@ export async function verifyYoutubeHeaders(_: unknown, formData: FormData) {
 		}
 	}
 
-	const YTMusicSingleton = new YouTubeMusic()
-
 	try {
-		const acc = await YTMusicSingleton.authenticate(parsedHeaders.Cookie)
+		const acc = await YTMusicUserSingleton.authenticate(parsedHeaders.Cookie)
 		await acc.getLibraryPlaylists()
 		const user = await userSession()
 		await prisma.user.update({
@@ -61,10 +70,92 @@ export async function verifyYoutubeHeaders(_: unknown, formData: FormData) {
 			success: true,
 			message: "Sucess! Redirecting...",
 		}
-	} catch (error) {
+	} catch {
 		return {
 			success: false,
 			message: "Invalid cookie.",
+		}
+	}
+}
+
+export const createPlaylist = async (spotifyPlaylist: SpotifyPlaylistType) => {
+	const user = await userSession()
+	const acc = await YTMusicUserSingleton.authenticate(
+		user?.user.youtubeId as string
+	)
+	const ytPlaylist = await acc.createPlaylist(spotifyPlaylist.name, "SPOTIFY!")
+	return ytPlaylist
+}
+
+export const convertSpotifyTrackToYoutube = async (
+	playlistId: string,
+	trackId: string
+) => {
+	try {
+		const user = await userSession()
+
+		const ytMusicApi =
+			userCache[user?.user.id as string]?.ytMusicApi ||
+			(await YTMusicApiSingleton.initialize())
+
+		const ytMusicUser =
+			userCache[user?.user.id as string]?.ytMusicUser ||
+			(await YTMusicUserSingleton.authenticate(user?.user.youtubeId as string))
+
+		userCache[user?.user.id as string] = {
+			...userCache[user?.user.id as string],
+			ytMusicApi,
+			ytMusicUser,
+		}
+
+		const track = await getSpotifyTrackFromId(null, trackId)
+
+		if (track === null) throw new Error("Only Spotify Tracks are supported!")
+
+		console.log(
+			`${track.name} ${track.artists.map((artist) => artist.name).join(" ")}`
+		)
+		const content = await ytMusicApi.searchSongs(
+			`${track.name} ${track.artists[0].name}`
+		)
+		// console.log(content[0])
+		// content = content.filter(
+		// 	(song) => song?.artist?.name === track.artists[0].name
+		// )
+		// console.log(content[0])
+		if (content[0] === undefined) {
+			console.log("DAIL")
+			throw new Error("Unable to find matching track on YouTube Music")
+		}
+		const videoId = content[0]?.videoId
+
+		const youtubeTrack: ITrackDetail = {
+			id: videoId,
+		}
+
+		const result = await ytMusicUser.addTracksToPlaylist(
+			playlistId,
+			youtubeTrack
+		)
+		console.log(result)
+		if (!result) {
+			console.log("FAIL")
+			throw new Error("Unable to find matching track on YouTube Music")
+		}
+		console.log("added tracks to playlist")
+
+		// Add YouTube URL
+		// content.length === 0 ? ytList.push(null) : ytList.push(`https://${ytMusicUrl ? 'music.' : ''}youtube.com/watch?v=${content[0].videoId}`);
+		// Return Result(s)
+
+		return {
+			success: true,
+		}
+	} catch (error) {
+		console.log(error)
+		return {
+			success: false,
+			message: error,
 		}
 	}
 }

@@ -1,4 +1,4 @@
-import { getUserAccount, prisma, userSession } from "./auth"
+import { getUserAccount } from "./auth"
 import SpotifyWebApi from "spotify-web-api-node"
 
 const createSpotifyApi = async () => {
@@ -33,7 +33,7 @@ const unifyPlaylists = async (
 ) => {
 	const playlist: SpotifyPlaylistType[] = []
 	// console.log(likedPlaylist)
-	console.log(savedPlaylists)
+
 	// Manually add liked tracks
 	playlist.push({
 		id: "liked",
@@ -52,8 +52,8 @@ const unifyPlaylists = async (
 	})
 	// Dynamically add other tracks
 	await Promise.all(
-		savedPlaylists.items.map(async (items, index) => {
-			const track = (await api.getPlaylistTracks(items.id)).body.items
+		savedPlaylists.items.map(async (parsedPlaylist) => {
+			const track = (await api.getPlaylistTracks(parsedPlaylist.id)).body.items
 			if (!track[0]?.track?.album.images[0]) return
 			const parsedTrack = track.map(({ track }) => ({
 				id: track?.id ?? "",
@@ -63,11 +63,13 @@ const unifyPlaylists = async (
 				// imageUrl: items.images ? items.images[0].url : "",
 			}))
 			playlist.push({
-				id: items.id,
-				name: items.name,
-				description: items.description || "",
-				trackCount: items.tracks.total,
-				imageUrl: items.images ? items.images[0].url : "/globe.svg",
+				id: parsedPlaylist.id,
+				name: parsedPlaylist.name,
+				description: parsedPlaylist.description || "",
+				trackCount: parsedPlaylist.tracks.total,
+				imageUrl: parsedPlaylist.images
+					? parsedPlaylist.images[0].url
+					: "/globe.svg",
 				isLikedTracks: false,
 
 				tracks: parsedTrack,
@@ -78,6 +80,39 @@ const unifyPlaylists = async (
 	return playlist
 }
 
+export const getAllTracksFromPlaylist = async (
+	api: SpotifyWebApi,
+	playlistId: string
+) => {
+	const spotify = api || (await createSpotifyApi())
+	const playlist = await spotify.getPlaylist(playlistId)
+	const tracks: SpotifyApi.PlaylistTrackObject[] = []
+	let next = playlist.body.tracks.next
+	while (next) {
+		const tracksResponse = await spotify.getPlaylistTracks(playlistId, {
+			limit: 50,
+			offset: tracks.length,
+		})
+		tracks.push(...tracksResponse.body.items)
+		next = tracksResponse.body.next
+	}
+	const data = {
+		...playlist.body,
+		tracks: tracks,
+	}
+
+	return data
+}
+
+export const getSpotifyTrackFromId = async (
+	api: SpotifyWebApi | null,
+	id: string
+) => {
+	const spotify = api || (await createSpotifyApi())
+	const track = await spotify.getTrack(id)
+	return track.body
+}
+
 // MAX LIMIT: 50
 export const getSpotifyPlaylists = async ({
 	limit,
@@ -86,7 +121,6 @@ export const getSpotifyPlaylists = async ({
 	limit: number
 	offset: number
 }) => {
-	const session = await userSession()
 	const spotify = await createSpotifyApi()
 	const savedTracks = await spotify.getMySavedTracks({
 		limit: limit,
@@ -96,6 +130,7 @@ export const getSpotifyPlaylists = async ({
 		limit: limit,
 		offset: offset,
 	})
+
 	const unifiedPlaylists = await unifyPlaylists(
 		savedTracks.body,
 		savedPlaylists.body,

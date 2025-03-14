@@ -20,7 +20,7 @@ export const metadata = {
 
 const Connect = async () => {
 	const hasAccess = await verifyBothLogins()
-	console.log(hasAccess)
+
 	if (hasAccess.success === true) redirect("/convert")
 
 	return <ConnectForm />

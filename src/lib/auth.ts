@@ -42,7 +42,7 @@ export const userSession = async () => {
 
 export const getUserAccount = async () => {
 	const session = await userSession()
-	console.log(session?.user.id)
+
 	const account = await auth.options.database({}).findOne({
 		model: "account",
 		where: [
