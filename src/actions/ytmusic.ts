@@ -1,7 +1,11 @@
 "use server"
 
 import { prisma, userSession } from "@/lib/auth"
-import { getSpotifyTrackFromId, SpotifyPlaylistType } from "@/lib/spotify"
+import {
+	getAllTracksFromPlaylist,
+	getSpotifyTrackFromId,
+	SpotifyPlaylistType,
+} from "@/lib/spotify"
 import { parseHeadersToJSON } from "@/lib/utils"
 
 import YouTubeMusic, {
@@ -115,16 +119,21 @@ export const convertSpotifyTrackToYoutube = async (
 		console.log(
 			`${track.name} ${track.artists.map((artist) => artist.name).join(" ")}`
 		)
-		const content = await ytMusicApi.searchSongs(
-			`${track.name} ${track.artists[0].name}`
-		)
+		let content
+		try {
+			content = await ytMusicApi.searchSongs(
+				`${track.name} ${track.artists[0].name}`
+			)
+		} catch (error) {
+			console.error("Error searching for track on YouTube Music:", error)
+			throw new Error("Error searching for track on YouTube Music")
+		}
 		// console.log(content[0])
 		// content = content.filter(
 		// 	(song) => song?.artist?.name === track.artists[0].name
 		// )
 		// console.log(content[0])
 		if (content[0] === undefined) {
-			console.log("DAIL")
 			throw new Error("Unable to find matching track on YouTube Music")
 		}
 		const videoId = content[0]?.videoId
@@ -152,10 +161,16 @@ export const convertSpotifyTrackToYoutube = async (
 			success: true,
 		}
 	} catch (error) {
-		console.log(error)
+		console.log("ERR: ", error)
 		return {
 			success: false,
 			message: error,
 		}
 	}
+}
+
+export const getAllTracksFromPlaylistClient = async (playlistId: string) => {
+	const tracks = await getAllTracksFromPlaylist(null, playlistId)
+	console.log(tracks)
+	return tracks
 }

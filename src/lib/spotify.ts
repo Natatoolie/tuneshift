@@ -1,13 +1,15 @@
 import { getUserAccount } from "./auth"
 import SpotifyWebApi from "spotify-web-api-node"
 
+const spotifyCache: { [key: string]: SpotifyWebApi } = {}
 const createSpotifyApi = async () => {
 	const user = await getUserAccount()
 	const accessToken = user?.accessToken
-	const x = new SpotifyWebApi({
+	if (spotifyCache[accessToken]) return spotifyCache[accessToken]
+	spotifyCache[accessToken] = new SpotifyWebApi({
 		accessToken: accessToken || "",
 	})
-	return x
+	return spotifyCache[accessToken]
 }
 
 export interface SpotifyPlaylistType {
@@ -29,10 +31,10 @@ export interface SpotifyTrackType {
 const unifyPlaylists = async (
 	likedPlaylist: SpotifyApi.UsersSavedTracksResponse,
 	savedPlaylists: SpotifyApi.ListOfUsersPlaylistsResponse,
+	preview: boolean,
 	api: SpotifyWebApi
 ) => {
 	const playlist: SpotifyPlaylistType[] = []
-	// console.log(likedPlaylist)
 
 	// Manually add liked tracks
 	playlist.push({
@@ -46,21 +48,20 @@ const unifyPlaylists = async (
 			id: track.id,
 			name: track.name,
 			artist: track.artists.map((artist) => artist.name).join(", "),
-			// imageUrl: "/spotifyLiked.jpg",
 			imageUrl: track.album.images ? track.album.images[0].url : "",
 		})),
 	})
 	// Dynamically add other tracks
 	await Promise.all(
 		savedPlaylists.items.map(async (parsedPlaylist) => {
-			const track = (await api.getPlaylistTracks(parsedPlaylist.id)).body.items
-			if (!track[0]?.track?.album.images[0]) return
-			const parsedTrack = track.map(({ track }) => ({
+			const allPlaylistTracks = preview
+				? (await api.getPlaylistTracks(parsedPlaylist.id, { limit: 3 })).body
+				: await getAllTracksFromPlaylist(api, parsedPlaylist.id)
+			const parsedTrack = allPlaylistTracks.items.map(({ track }) => ({
 				id: track?.id ?? "",
 				name: track?.name ?? "",
 				artist: track?.artists.map((artist) => artist.name).join(", ") ?? "",
 				imageUrl: track?.album.images[0] ? track?.album?.images[0].url : "",
-				// imageUrl: items.images ? items.images[0].url : "",
 			}))
 			playlist.push({
 				id: parsedPlaylist.id,
@@ -71,7 +72,6 @@ const unifyPlaylists = async (
 					? parsedPlaylist.images[0].url
 					: "/globe.svg",
 				isLikedTracks: false,
-
 				tracks: parsedTrack,
 			})
 		})
@@ -81,24 +81,40 @@ const unifyPlaylists = async (
 }
 
 export const getAllTracksFromPlaylist = async (
-	api: SpotifyWebApi,
+	api: SpotifyWebApi | null,
 	playlistId: string
 ) => {
-	const spotify = api || (await createSpotifyApi())
-	const playlist = await spotify.getPlaylist(playlistId)
+	const isLiked = playlistId === "liked"
+	const spotify = await createSpotifyApi()
+	const playlist = isLiked
+		? await spotify.getMySavedTracks()
+		: await spotify.getPlaylistTracks(playlistId)
 	const tracks: SpotifyApi.PlaylistTrackObject[] = []
-	let next = playlist.body.tracks.next
-	while (next) {
-		const tracksResponse = await spotify.getPlaylistTracks(playlistId, {
-			limit: 50,
-			offset: tracks.length,
-		})
-		tracks.push(...tracksResponse.body.items)
+	let next: string | null = playlist.body.next
+	let currentOffset = 0
+	const limit = 50
+	while (true) {
+		const tracksResponse = isLiked
+			? await spotify.getMySavedTracks({
+					limit: limit,
+					offset: currentOffset,
+			  })
+			: await spotify.getPlaylistTracks(playlistId, {
+					limit: limit,
+					offset: currentOffset,
+			  })
+
+		console.log(tracksResponse)
+		tracks.push(
+			...(tracksResponse.body.items as SpotifyApi.PlaylistTrackObject[])
+		)
+		if (!next) break
 		next = tracksResponse.body.next
+		currentOffset += limit
 	}
 	const data = {
 		...playlist.body,
-		tracks: tracks,
+		items: tracks,
 	}
 
 	return data
@@ -113,30 +129,60 @@ export const getSpotifyTrackFromId = async (
 	return track.body
 }
 
-// MAX LIMIT: 50
-export const getSpotifyPlaylists = async ({
-	limit,
-	offset,
-}: {
-	limit: number
-	offset: number
-}) => {
-	const spotify = await createSpotifyApi()
-	const savedTracks = await spotify.getMySavedTracks({
-		limit: limit,
-		offset: offset,
-	})
-	const savedPlaylists = await spotify.getUserPlaylists({
-		limit: limit,
-		offset: offset,
-	})
+export const getSpotifyPlaylists = async (preview: boolean) => {
+	try {
+		const spotify = await createSpotifyApi()
+		console.log(spotify)
 
-	const unifiedPlaylists = await unifyPlaylists(
-		savedTracks.body,
-		savedPlaylists.body,
-		spotify
-	)
-	// savedPlaylists.body.items[0]
-	// savedTracks.body.items[0].track
-	return unifiedPlaylists
+		const allSavedTracks = await spotify.getMySavedTracks({
+			limit: 50,
+			offset: 0,
+		})
+		const allSavedPlaylists = await spotify.getUserPlaylists({
+			limit: 50,
+			offset: 0,
+		})
+
+		const savedTracks: SpotifyApi.UsersSavedTracksResponse = allSavedTracks.body
+		const savedPlaylists: SpotifyApi.ListOfUsersPlaylistsResponse =
+			allSavedPlaylists.body
+
+		let offset = 50
+		while (allSavedTracks.body.next) {
+			const nextSavedTracks = await spotify.getMySavedTracks({
+				limit: preview ? 3 : 50,
+				offset: offset,
+			})
+			savedTracks.items.push(...nextSavedTracks.body.items)
+			offset += 50
+			if (!nextSavedTracks.body.next) break
+		}
+
+		offset = 50
+		while (allSavedPlaylists.body.next) {
+			const nextSavedPlaylists = await spotify.getUserPlaylists({
+				limit: 50,
+				offset: offset,
+			})
+			savedPlaylists.items.push(...nextSavedPlaylists.body.items)
+			offset += 50
+			if (!nextSavedPlaylists.body.next) break
+		}
+		savedTracks.total = savedTracks.items.length
+		savedPlaylists.total = savedPlaylists.items.length
+
+		const unifiedPlaylists = await unifyPlaylists(
+			savedTracks,
+			savedPlaylists,
+			preview,
+			spotify
+		)
+
+		return { success: true, data: unifiedPlaylists }
+	} catch {
+		// console.log(error.headers)
+		return {
+			success: false,
+		}
+	}
 }

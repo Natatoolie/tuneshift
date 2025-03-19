@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { z } from "zod"
+import { SpotifyTrackType } from "./spotify"
 
 const zodParseHeaders = z.object({
 	Accept: z.literal("*/*"),
@@ -42,3 +43,12 @@ export function parseHeadersToJSON(
 
 	return finalheaders.data
 }
+
+export const parseToSpotifyTrack = (
+	track: SpotifyApi.TrackObjectFull
+): SpotifyTrackType => ({
+	id: track.id,
+	name: track.name,
+	artist: track.artists.map((artist) => artist.name).join(", "),
+	imageUrl: track.album.images ? track.album.images[0].url : "",
+})

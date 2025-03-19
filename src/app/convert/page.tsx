@@ -1,14 +1,23 @@
 import React, { Suspense } from "react"
 import ConvertTitle from "./ConvertTitle"
-import { getSpotifyPlaylists } from "@/lib/spotify"
+import { getSpotifyPlaylists, SpotifyPlaylistType } from "@/lib/spotify"
 import SpotifyPlaylist from "./SpotifyPlaylist"
 import { verifyBothLogins } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import SpotifyPlaylistSkeleton from "./SpotifyPlaylistSkeleton"
 
 const SpotifyPlaylistSuspense = async () => {
-	const spotifyPlaylist = await getSpotifyPlaylists({ limit: 50, offset: 0 })
-	return <SpotifyPlaylist spotifyPlaylist={spotifyPlaylist} />
+	const spotifyPlaylist = await getSpotifyPlaylists(true)
+	if (spotifyPlaylist.success === false) {
+		console.log(spotifyPlaylist.data)
+		return <>A problem has occurred...</>
+	}
+
+	return (
+		<SpotifyPlaylist
+			spotifyPlaylist={spotifyPlaylist.data as SpotifyPlaylistType[]}
+		/>
+	)
 }
 
 const Convert = async () => {

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import type { SpotifyPlaylistType, SpotifyTrackType } from "@/lib/spotify"
+import { type SpotifyPlaylistType, type SpotifyTrackType } from "@/lib/spotify"
 import {
 	Music2,
 	ChevronDown,
@@ -19,7 +19,12 @@ import {
 	AlertCircle,
 	XCircle,
 } from "lucide-react"
-import { convertSpotifyTrackToYoutube, createPlaylist } from "@/actions/ytmusic"
+import {
+	convertSpotifyTrackToYoutube,
+	createPlaylist,
+	getAllTracksFromPlaylistClient,
+} from "@/actions/ytmusic"
+import { parseToSpotifyTrack } from "@/lib/utils"
 
 interface ConversionError {
 	playlistId: string
@@ -141,6 +146,7 @@ const SpotifyPlaylist = ({
 		const playlistsToConvert = spotifyPlaylist.filter((playlist) =>
 			selectedPlaylists.includes(playlist.id.toString())
 		)
+		console.log(playlistsToConvert)
 
 		let currentIndex = 0
 		const totalPlaylists = playlistsToConvert.length
@@ -149,9 +155,15 @@ const SpotifyPlaylist = ({
 			setCurrentPlaylist(playlist.name)
 
 			const ytPlaylist = await createPlaylist(playlist)
+			console.log(playlist)
+			const allTracks = await getAllTracksFromPlaylistClient(playlist.id)
+			console.log(allTracks)
 
 			// Process each track in the playlist
-			for (const track of playlist.tracks) {
+			for (const item of allTracks.items) {
+				const unparsedTrack = item.track
+				if (!unparsedTrack) return
+				const track = parseToSpotifyTrack(unparsedTrack)
 				setCurrentTrack(track.name)
 
 				// Attempt to convert the track
@@ -159,7 +171,7 @@ const SpotifyPlaylist = ({
 
 				// Update progress based on tracks
 				const trackProgress =
-					(playlist.tracks.indexOf(track) + 1) / playlist.tracks.length
+					(allTracks.items.indexOf(item) + 1) / allTracks.total
 				const overallProgress = Math.floor(
 					(currentIndex / totalPlaylists + trackProgress / totalPlaylists) * 100
 				)
